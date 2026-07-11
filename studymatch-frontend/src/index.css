@@ -1,0 +1,31 @@
+/* src/index.css */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap");
+
+@import "tailwindcss";
+
+
+/* Rutas explícitas sin llaves para asegurar compatibilidad en Windows */
+@source "../index.html";
+@source "./App.jsx";
+@source "./features/auth/Login.jsx";
+@source "./features/auth/Registro.jsx";
+@source "./features/profile/Perfil.jsx";
+@source "./features/admin/AdminDashboard.jsx";
+@source "./features/circulos/Circulos.jsx";
+
+@theme {
+  --font-sans: "Inter", "sans-serif";
+  --font-title: "Poppins", "sans-serif";
+
+  --color-brand-50: #f0fdf4;
+  --color-brand-100: #dcfce7;
+  --color-brand-200: #bbf7d0;
+  --color-brand-300: #86efac;
+  --color-brand-400: #4ade80;
+  --color-brand-500: #22c55e;
+  --color-brand-600: #16a34a;
+  --color-brand-700: #15803d;
+  --color-brand-800: #166534;
+  --color-brand-900: #14532d;
+}

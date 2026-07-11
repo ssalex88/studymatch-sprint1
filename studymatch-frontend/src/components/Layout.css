@@ -1,0 +1,147 @@
+/* src/components/Layout.css */
+
+.layout-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+}
+
+/* ==========================================================
+   Barra lateral (Sidebar)
+   ========================================================== */
+
+.layout-sidebar {
+  width: 260px;
+  min-width: 260px;
+  background-color: #173b2d;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1.5rem 1rem;
+  box-sizing: border-box;
+}
+
+/* --- Sección del logo --- */
+
+.layout-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.5rem 1.5rem 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.layout-logo-icon {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 12px;
+  background-color: #22c55e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 1.1rem;
+}
+
+.layout-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.layout-logo-title {
+  font-family: "Poppins", sans-serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #ffffff;
+  text-transform: lowercase;
+}
+
+.layout-logo-subtitle {
+  font-family: "Inter", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #86efac;
+}
+
+/* --- Sección de navegación --- */
+
+.layout-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.layout-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.75rem;
+  border-radius: 10px;
+  color: #d1fae5;
+  font-family: "Inter", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.layout-nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.layout-nav-icon {
+  width: 18px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: #4ade80;
+}
+
+/* --- Sección de salida --- */
+
+.layout-logout {
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.layout-logout-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  border: none;
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #fca5a5;
+  font-family: "Inter", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.layout-logout-button:hover {
+  background-color: rgba(248, 113, 113, 0.15);
+  color: #fecaca;
+}
+
+/* ==========================================================
+   Área de contenido (Main)
+   ========================================================== */
+
+.layout-content {
+  flex-grow: 1;
+  height: 100%;
+  background-color: #fafaf9;
+  overflow-y: auto;
+  box-sizing: border-box;
+}

@@ -1,0 +1,10 @@
+D:\Documentos\Studymatch\studymatch-backend\src\main\java\net\studymatch\api\App.java
+D:\Documentos\Studymatch\studymatch-backend\src\main\java\net\studymatch\api\config\CorsHelper.java
+D:\Documentos\Studymatch\studymatch-backend\src\main\java\net\studymatch\api\config\DatabaseConfig.java
+D:\Documentos\Studymatch\studymatch-backend\src\main\java\net\studymatch\api\controller\UsuarioController.java
+D:\Documentos\Studymatch\studymatch-backend\src\main\java\net\studymatch\api\dto\AuthResponseDTO.java
+D:\Documentos\Studymatch\studymatch-backend\src\main\java\net\studymatch\api\dto\LoginRequestDTO.java
+D:\Documentos\Studymatch\studymatch-backend\src\main\java\net\studymatch\api\dto\UsuarioRegistroDTO.java
+D:\Documentos\Studymatch\studymatch-backend\src\main\java\net\studymatch\api\entity\Usuario.java
+D:\Documentos\Studymatch\studymatch-backend\src\main\java\net\studymatch\api\repository\UsuarioRepository.java
+D:\Documentos\Studymatch\studymatch-backend\src\main\java\net\studymatch\api\service\UsuarioService.java
