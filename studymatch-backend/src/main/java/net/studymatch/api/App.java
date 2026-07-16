@@ -7,13 +7,14 @@ import java.util.concurrent.Executors;
 
 import com.sun.net.httpserver.HttpServer;
 
+import net.studymatch.api.controller.AuthController;
 import net.studymatch.api.controller.UsuarioController;
 
 /**
  * Punto de entrada principal de la API REST de StudyMatch. Inicializa un
  * HttpServer nativo (com.sun.net.httpserver) en el puerto 8080, usando un pool
- * de hilos fijo para atender las peticiones de forma concurrente, y registra el
- * contexto base "/api/" que es atendido por AuthController.
+ * de hilos fijo para atender las peticiones de forma concurrente, y registra los
+ * contextos base de autenticacion y usuarios.
  */
 public class App {
 
@@ -27,10 +28,8 @@ public class App {
             ExecutorService pool = Executors.newFixedThreadPool(TAMANO_POOL_HILOS);
             server.setExecutor(pool);
 
-            // Registro del contexto base de la API. Todas las rutas que
-            // comiencen con /api/ (por ejemplo /api/auth/registrar,
-            // /api/auth/login, /api/usuarios) son manejadas por AuthController.
-
+            // Registro de contextos base de la API.
+            server.createContext("/api/auth", new AuthController());
             server.createContext("/api/usuarios", new UsuarioController());
             server.start();
 
@@ -38,7 +37,7 @@ public class App {
             System.out.println(" StudyMatch API iniciada correctamente");
             System.out.println(" Servidor escuchando en el puerto: " + PUERTO);
             System.out.println(" URL base: http://localhost:" + PUERTO);
-            System.out.println(" Contexto registrado: /api/ -> AuthController");
+            System.out.println(" Contextos registrados: /api/auth, /api/usuarios");
             System.out.println("========================================");
 
         } catch (IOException e) {

@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
 /**
  * Controlador HTTP encargado de la gestion general de usuarios de StudyMatch:
  * - GET  /api/usuarios          -> listar todos los usuarios
+ * - GET  /api/usuarios/{id}     -> obtener un usuario sin contrasena
  * - PUT  /api/usuarios/{id}     -> actualizar el perfil academico de un usuario
  * - POST /api/usuarios/{id}/rol -> cambiar el rol de un usuario
  */
@@ -54,6 +55,9 @@ public class UsuarioController implements HttpHandler {
 
             if ("GET".equalsIgnoreCase(metodo) && "/api/usuarios".equals(ruta)) {
                 manejarListarUsuarios(exchange);
+            } else if ("GET".equalsIgnoreCase(metodo) && matcherPorId.matches()) {
+                int idUsuario = Integer.parseInt(matcherPorId.group(1));
+                manejarObtenerUsuario(exchange, idUsuario);
             } else if (("POST".equalsIgnoreCase(metodo) || "PATCH".equalsIgnoreCase(metodo))
                     && matcherRol.matches()) {
                 int idUsuario = Integer.parseInt(matcherRol.group(1));
@@ -81,6 +85,21 @@ public class UsuarioController implements HttpHandler {
     private void manejarListarUsuarios(HttpExchange exchange) throws Exception {
         List<Usuario> usuarios = usuarioService.obtenerTodosLosUsuarios();
         enviarRespuesta(exchange, 200, gson.toJson(usuarios));
+    }
+
+    /**
+     * Maneja la ruta GET /api/usuarios/{id}.
+     * Recupera un usuario por ID sin exponer la contrasena.
+     */
+    private void manejarObtenerUsuario(HttpExchange exchange, int idUsuario) throws Exception {
+        Usuario usuario = usuarioService.obtenerUsuarioPorId(idUsuario);
+
+        if (usuario == null) {
+            enviarError(exchange, 404, "Usuario no encontrado.");
+            return;
+        }
+
+        enviarRespuesta(exchange, 200, gson.toJson(usuario));
     }
 
     /**

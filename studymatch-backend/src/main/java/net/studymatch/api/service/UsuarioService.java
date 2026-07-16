@@ -121,6 +121,18 @@ public class UsuarioService {
     }
 
     /**
+     * Recupera un usuario por su identificador sin incluir la contrasena.
+     * Metodo puente directo hacia UsuarioRepository.buscarPorId.
+     *
+     * @param idUsuario el identificador del usuario a buscar.
+     * @return el usuario encontrado, o null si no existe.
+     * @throws SQLException si ocurre un error durante la operacion con la base de datos.
+     */
+    public Usuario obtenerUsuarioPorId(int idUsuario) throws SQLException {
+        return usuarioRepository.buscarPorId(idUsuario);
+    }
+
+    /**
      * Cambia el rol asignado a un usuario (por ejemplo, de "Estudiante" a
      * "Administrador"). Metodo puente directo hacia UsuarioRepository.actualizarRol.
      *

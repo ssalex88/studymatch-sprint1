@@ -28,6 +28,10 @@ public class UsuarioRepository {
             "SELECT id_usuario, nombre_completo, correo_institucional, rol, carrera, ciclo, " +
             "codigo_alumno, biografia FROM usuarios";
 
+    private static final String SQL_SELECT_POR_ID =
+            "SELECT id_usuario, nombre_completo, correo_institucional, rol, carrera, ciclo, " +
+            "codigo_alumno, biografia FROM usuarios WHERE id_usuario = ?";
+
     private static final String SQL_UPDATE_PERFIL =
             "UPDATE usuarios SET carrera = ?, ciclo = ?, codigo_alumno = ?, biografia = ? " +
             "WHERE id_usuario = ?";
@@ -97,6 +101,28 @@ public class UsuarioRepository {
         }
 
         return usuarios;
+    }
+
+    /**
+     * Busca un usuario por su identificador sin incluir la contrasena.
+     *
+     * @param idUsuario el identificador del usuario a buscar.
+     * @return el Usuario encontrado sin contrasena, o null si no existe.
+     * @throws SQLException si ocurre un error durante la operacion con la base de datos.
+     */
+    public Usuario buscarPorId(int idUsuario) throws SQLException {
+        try (Connection conexion = DatabaseConfig.getConnection();
+             PreparedStatement statement = conexion.prepareStatement(SQL_SELECT_POR_ID)) {
+
+            statement.setInt(1, idUsuario);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return mapearUsuarioSinContrasena(resultSet);
+                }
+                return null;
+            }
+        }
     }
 
     /**

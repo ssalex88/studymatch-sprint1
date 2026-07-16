@@ -12,8 +12,8 @@ import java.sql.SQLException;
 public class DatabaseConfig {
 
     private static final String URL = "jdbc:mysql://localhost:3306/studymatch_db";
-    private static final String USUARIO = "root";
-    private static final String CLAVE = "";
+    private static final String USUARIO = "studymatch_user";
+    private static final String CLAVE = "123456";
 
     static {
         try {
