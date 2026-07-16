@@ -10,9 +10,10 @@ import java.io.IOException;
  */
 public class CorsHelper {
 
-    private static final String ALLOW_ORIGIN = "*";
+    private static final String ALLOW_ORIGIN = "http://localhost:5173";
     private static final String ALLOW_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
     private static final String ALLOW_HEADERS = "Content-Type, Authorization";
+    private static final String ALLOW_CREDENTIALS = "true";
 
     private CorsHelper() {
         // Clase utilitaria: se evita la instanciacion.
@@ -28,6 +29,7 @@ public class CorsHelper {
         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", ALLOW_ORIGIN);
         exchange.getResponseHeaders().set("Access-Control-Allow-Methods", ALLOW_METHODS);
         exchange.getResponseHeaders().set("Access-Control-Allow-Headers", ALLOW_HEADERS);
+        exchange.getResponseHeaders().set("Access-Control-Allow-Credentials", ALLOW_CREDENTIALS);
     }
 
     /**

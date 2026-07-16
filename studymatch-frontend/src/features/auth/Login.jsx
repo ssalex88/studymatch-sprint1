@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../../core/services/authService";
+import { cacheCurrentUserForUi } from "../../core/services/currentUserCache";
 import "./Login.css";
 
 /**
@@ -38,10 +39,7 @@ export default function Login() {
 		setLoading(true);
 		try {
 			const respuesta = await loginUser(formData);
-			localStorage.setItem("currentUser", JSON.stringify(respuesta));
-			if (respuesta.sessionToken) {
-				localStorage.setItem("sessionToken", respuesta.sessionToken);
-			}
+			cacheCurrentUserForUi(respuesta);
 			navigate("/perfil");
 		} catch (err) {
 			setError(err.message || "Credenciales de acceso incorrectas.");

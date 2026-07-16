@@ -1,6 +1,10 @@
 // src/features/admin/AdminDashboard.jsx
 
 import { useState, useEffect } from "react";
+import {
+	cacheCurrentUserForUi,
+	clearCurrentUserCache,
+} from "../../core/services/currentUserCache";
 import { getAllUsers, updateUserRole } from "../../core/services/userService";
 
 const ROLES_DISPONIBLES = [
@@ -53,11 +57,11 @@ export default function AdminDashboard() {
 
 		try {
 			const usuarioParseado = datosGuardados
-				? JSON.parse(datosGuardados)
+				? cacheCurrentUserForUi(JSON.parse(datosGuardados))
 				: null;
 			setUsuarioActual(usuarioParseado);
 		} catch {
-			localStorage.removeItem("currentUser");
+			clearCurrentUserCache();
 			setUsuarioActual(null);
 		} finally {
 			setVerificado(true);
@@ -107,8 +111,10 @@ export default function AdminDashboard() {
 			);
 
 			if (usuarioActual && usuarioActual.idUsuario === usuario.idUsuario) {
-				const usuarioActualizado = { ...usuarioActual, rol: nuevoRol };
-				localStorage.setItem("currentUser", JSON.stringify(usuarioActualizado));
+				const usuarioActualizado = cacheCurrentUserForUi({
+					...usuarioActual,
+					rol: nuevoRol,
+				});
 				setUsuarioActual(usuarioActualizado);
 			}
 

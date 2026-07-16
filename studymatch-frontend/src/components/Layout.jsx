@@ -2,6 +2,8 @@
 
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { logoutUser } from "../core/services/authService";
+import { clearCurrentUserCache } from "../core/services/currentUserCache";
 import "./Layout.css";
 
 /**
@@ -15,19 +17,25 @@ import "./Layout.css";
  * @param {React.ReactNode} props.children - El contenido dinámico a renderizar
  *  dentro del área principal.
  * @param {Function} [props.onLogout] - Callback opcional ejecutado al presionar
- *  "Cerrar Sesión". Si no se provee, se limpia localStorage y se redirige al login.
+ *  "Cerrar Sesión" despues de invalidar la sesion backend.
  */
 export default function Layout({ children, onLogout }) {
 	const navigate = useNavigate();
 
-	const handleCerrarSesion = () => {
+	const handleCerrarSesion = async () => {
+		try {
+			await logoutUser();
+		} catch {
+			// La salida local debe continuar aunque el backend no responda.
+		} finally {
+			clearCurrentUserCache();
+		}
+
 		if (onLogout) {
 			onLogout();
 			return;
 		}
 
-		localStorage.removeItem("currentUser");
-		localStorage.removeItem("sessionToken");
 		navigate("/login");
 	};
 

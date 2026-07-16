@@ -219,10 +219,56 @@ Make the Sprint 1 DoD claim "access is protected by authentication" defensible b
 ### Remaining limitations for this slice
 
 - Sessions are in-memory only and disappear when the Java process restarts; this is intentional for the academic Sprint 1 demo and not production-ready.
-- There is no backend logout/session revocation endpoint; frontend logout clears localStorage only.
-- Tokens are stored in localStorage for demo continuity, which is acceptable for this Sprint 1 scope but not hardened against XSS.
+- The original localStorage token transport and missing backend logout limitations are superseded by the Sprint 1 auth hardening follow-up below.
 - Password hashing remains the existing SHA-256 implementation; stronger password hashing is outside this focused slice.
 - The smoke test used a direct database role update to promote a newly created smoke user to `Administrador` before exercising admin-only endpoints.
+
+## Fifth implementation slice — HttpOnly cookie sessions and backend logout
+
+### Scope
+
+Replace frontend localStorage token authorization with HttpOnly cookie-backed sessions while keeping the existing in-memory Sprint 1 session service and user-route authorization model.
+
+### Files changed
+
+| File | Purpose |
+| --- | --- |
+| `studymatch-backend/src/main/java/net/studymatch/api/controller/AuthController.java` | Sets the session cookie on register/login, adds `POST /api/auth/logout`, clears the cookie, and removes the response-body token before serializing auth responses. |
+| `studymatch-backend/src/main/java/net/studymatch/api/service/SessionService.java` | Resolves auth from `studyMatchSession` cookie first, keeps bearer fallback, parses cookies defensively, and exposes session removal for logout. |
+| `studymatch-backend/src/main/java/net/studymatch/api/config/CorsHelper.java` | Uses the local Vite origin instead of `*` and allows credentials for cookie transport. |
+| `studymatch-frontend/src/core/services/authService.js` | Sends credentialed register/login/logout requests and adds the logout API call. |
+| `studymatch-frontend/src/core/services/userService.js` | Sends credentialed user requests and no longer builds Authorization headers from localStorage. |
+| `studymatch-frontend/src/core/services/currentUserCache.js` | Centralizes the non-authoritative UI cache and strips any `sessionToken` before writing to localStorage. |
+| `studymatch-frontend/src/features/auth/Login.jsx` | Caches only safe user UI data after login. |
+| `studymatch-frontend/src/features/auth/Registro.jsx` | Caches only safe user UI data after registration. |
+| `studymatch-frontend/src/components/Layout.jsx` | Calls backend logout, then clears local UI cache. |
+| `studymatch-frontend/src/features/profile/Perfil.jsx` | Keeps profile cache token-free while using cookie-authenticated user service calls. |
+| `studymatch-frontend/src/features/admin/AdminDashboard.jsx` | Keeps admin cache token-free while preserving the existing UI role gate. |
+| `openspec/harness-evidence.md` | Records the follow-up hardening evidence and limitations. |
+
+### Implemented behavior
+
+- Successful registration/login creates the same in-memory server session, sets `Set-Cookie: studyMatchSession=<token>; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800`, and does not require frontend JavaScript to read or store the token.
+- `SessionService` authenticates protected routes from the session cookie first and still accepts `Authorization: Bearer` as a compatibility fallback.
+- `POST /api/auth/logout` removes the server-side in-memory session token when present and sends a clearing cookie with `Max-Age=0`.
+- CORS is credential-compatible for local Vite development through `Access-Control-Allow-Origin: http://localhost:5173` and `Access-Control-Allow-Credentials: true`.
+- Frontend auth/user requests use `credentials: "include"`; `currentUser` remains only a non-authoritative UI cache and stale `sessionToken` entries are removed from localStorage.
+
+### Verification evidence for this slice
+
+| Check | Result |
+| --- | --- |
+| `cd studymatch-backend && mvn clean package` | Passed; backend compiled and jar with dependencies was built. Temporary jar outputs were removed after smoke verification; the repository's pre-existing tracked `target/` class files were restored to avoid unrelated deletion noise. |
+| `cd studymatch-frontend && npm run build && npm run lint` | Passed; Vite production build completed and Oxlint reported no findings, then generated `dist/` artifacts were removed. |
+| `git diff --check` | Passed after artifact cleanup. |
+| Runtime API smoke test | Passed against MySQL and the rebuilt backend jar using curl cookie jars: registration and login set the HttpOnly cookie, protected user route succeeds with cookie, the same route returns 401 without cookie, logout clears the cookie and invalidates the session, and the protected route returns 401 after logout. The smoke user row was deleted afterward. |
+
+### Remaining limitations for this slice
+
+- Sessions remain in-memory only and disappear when the Java process restarts; this is intentional for Sprint 1 and not production-ready.
+- The cookie intentionally omits `Secure` for localhost HTTP development; production HTTPS must add `Secure`.
+- Password hashing remains the existing SHA-256 implementation; stronger password hashing is outside this focused follow-up.
+- `currentUser` in localStorage is still a convenience UI cache and must not be treated as authorization authority.
 
 ## Recommended professor-facing explanation
 

@@ -8,6 +8,7 @@ import net.studymatch.api.config.CorsHelper;
 import net.studymatch.api.dto.AuthResponseDTO;
 import net.studymatch.api.dto.LoginRequestDTO;
 import net.studymatch.api.dto.UsuarioRegistroDTO;
+import net.studymatch.api.service.SessionService;
 import net.studymatch.api.service.UsuarioService;
 
 import java.io.BufferedReader;
@@ -23,15 +24,19 @@ import java.util.regex.Pattern;
  * Controlador HTTP encargado de la autenticacion de StudyMatch:
  * - POST /api/auth/registrar -> registrar un nuevo usuario
  * - POST /api/auth/login     -> iniciar sesion
+ * - POST /api/auth/logout    -> cerrar sesion
  */
 public class AuthController implements HttpHandler {
 
     private static final String RUTA_REGISTRO = "/api/auth/registrar";
     private static final String RUTA_LOGIN = "/api/auth/login";
+    private static final String RUTA_LOGOUT = "/api/auth/logout";
+    private static final int SESSION_COOKIE_MAX_AGE_SECONDS = 8 * 60 * 60;
     private static final Pattern PATRON_EMAIL_GENERICO =
             Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
     private UsuarioService usuarioService = new UsuarioService();
+    private SessionService sessionService = new SessionService();
     private Gson gson = new Gson();
 
     @Override
@@ -58,6 +63,12 @@ public class AuthController implements HttpHandler {
                     return;
                 }
                 manejarLogin(exchange);
+            } else if (RUTA_LOGOUT.equals(ruta)) {
+                if (!"POST".equalsIgnoreCase(metodo)) {
+                    enviarMetodoNoPermitido(exchange);
+                    return;
+                }
+                manejarLogout(exchange);
             } else {
                 enviarError(exchange, 404, "Ruta no encontrada.");
             }
@@ -81,6 +92,7 @@ public class AuthController implements HttpHandler {
         validarRegistro(dto);
 
         AuthResponseDTO respuesta = usuarioService.registrarUsuario(dto);
+        adjuntarCookieSesion(exchange, respuesta);
         enviarRespuesta(exchange, 201, gson.toJson(respuesta));
     }
 
@@ -92,6 +104,20 @@ public class AuthController implements HttpHandler {
         validarLogin(dto);
 
         AuthResponseDTO respuesta = usuarioService.iniciarSesion(dto);
+        adjuntarCookieSesion(exchange, respuesta);
+        enviarRespuesta(exchange, 200, gson.toJson(respuesta));
+    }
+
+    /**
+     * Maneja la ruta POST /api/auth/logout.
+     */
+    private void manejarLogout(HttpExchange exchange) throws IOException {
+        String token = sessionService.obtenerTokenDeSesion(exchange);
+        sessionService.eliminarSesion(token);
+        limpiarCookieSesion(exchange);
+
+        Map<String, String> respuesta = new HashMap<>();
+        respuesta.put("mensaje", "Sesion cerrada correctamente.");
         enviarRespuesta(exchange, 200, gson.toJson(respuesta));
     }
 
@@ -133,6 +159,26 @@ public class AuthController implements HttpHandler {
         if (valor == null || valor.trim().isEmpty()) {
             throw new IllegalArgumentException("El campo '" + campo + "' es obligatorio.");
         }
+    }
+
+    private void adjuntarCookieSesion(HttpExchange exchange, AuthResponseDTO respuesta) {
+        String token = respuesta.getSessionToken();
+        if (token != null && !token.trim().isEmpty()) {
+            exchange.getResponseHeaders().add("Set-Cookie", construirCookieSesion(token));
+            respuesta.setSessionToken(null);
+        }
+    }
+
+    private void limpiarCookieSesion(HttpExchange exchange) {
+        exchange.getResponseHeaders().add(
+                "Set-Cookie",
+                SessionService.SESSION_COOKIE_NAME + "=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0"
+        );
+    }
+
+    private String construirCookieSesion(String token) {
+        return SessionService.SESSION_COOKIE_NAME + "=" + token
+                + "; HttpOnly; SameSite=Lax; Path=/; Max-Age=" + SESSION_COOKIE_MAX_AGE_SECONDS;
     }
 
     /**

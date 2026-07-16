@@ -3,6 +3,10 @@ import {
 	getUserById,
 	updateUserProfile,
 } from "../../core/services/userService";
+import {
+	cacheCurrentUserForUi,
+	clearCurrentUserCache,
+} from "../../core/services/currentUserCache";
 
 const CARRERAS = [
 	"Ingeniería de Sistemas",
@@ -76,27 +80,27 @@ export default function Perfil() {
 		try {
 			usuarioParseado = JSON.parse(datosGuardados);
 		} catch {
-			localStorage.removeItem("currentUser");
+			clearCurrentUserCache();
 			return undefined;
 		}
 
-		setUsuario(usuarioParseado);
-		setFormData(mapearPerfilAFormulario(usuarioParseado));
+		const usuarioCacheado = cacheCurrentUserForUi(usuarioParseado);
+		setUsuario(usuarioCacheado);
+		setFormData(mapearPerfilAFormulario(usuarioCacheado));
 
-		if (usuarioParseado.idUsuario) {
-			getUserById(usuarioParseado.idUsuario)
+		if (usuarioCacheado.idUsuario) {
+			getUserById(usuarioCacheado.idUsuario)
 				.then((usuarioActualizado) => {
 					if (!componenteActivo) {
 						return;
 					}
 
-					const usuarioConSesion = {
-						...usuarioParseado,
+					const usuarioActualizadoCache = cacheCurrentUserForUi({
+						...usuarioCacheado,
 						...usuarioActualizado,
-					};
-					localStorage.setItem("currentUser", JSON.stringify(usuarioConSesion));
-					setUsuario(usuarioConSesion);
-					setFormData(mapearPerfilAFormulario(usuarioConSesion));
+					});
+					setUsuario(usuarioActualizadoCache);
+					setFormData(mapearPerfilAFormulario(usuarioActualizadoCache));
 				})
 				.catch((err) => {
 					if (!componenteActivo) {
@@ -143,8 +147,10 @@ export default function Perfil() {
 		try {
 			await updateUserProfile(usuario.idUsuario, formData);
 
-			const usuarioActualizado = { ...usuario, ...formData };
-			localStorage.setItem("currentUser", JSON.stringify(usuarioActualizado));
+			const usuarioActualizado = cacheCurrentUserForUi({
+				...usuario,
+				...formData,
+			});
 			setUsuario(usuarioActualizado);
 
 			setExito("Tu información académica se actualizó correctamente.");

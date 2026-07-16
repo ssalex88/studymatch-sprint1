@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../../core/services/authService";
+import { cacheCurrentUserForUi } from "../../core/services/currentUserCache";
 import "./Registro.css";
 
 const CARRERAS = [
@@ -77,10 +78,7 @@ export default function Registro() {
 		setLoading(true);
 		try {
 			const respuesta = await registerUser(formData);
-			localStorage.setItem("currentUser", JSON.stringify(respuesta));
-			if (respuesta.sessionToken) {
-				localStorage.setItem("sessionToken", respuesta.sessionToken);
-			}
+			cacheCurrentUserForUi(respuesta);
 			setSuccess("¡Cuenta creada con éxito! Te redirigiremos a tu perfil...");
 
 			setTimeout(() => {

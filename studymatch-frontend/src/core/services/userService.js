@@ -8,36 +8,10 @@ import { ENV } from "../../config/environment";
  * con fetch() y retorna promesas, o lanza errores descriptivos.
  */
 
-function getSessionToken() {
-	const tokenDirecto = localStorage.getItem("sessionToken");
-	if (tokenDirecto) {
-		return tokenDirecto;
-	}
-
-	const datosGuardados = localStorage.getItem("currentUser");
-	if (!datosGuardados) {
-		return "";
-	}
-
-	try {
-		const usuario = JSON.parse(datosGuardados);
-		return usuario.sessionToken || "";
-	} catch {
-		return "";
-	}
-}
-
 function buildJsonHeaders() {
-	const headers = {
+	return {
 		"Content-Type": "application/json",
 	};
-	const sessionToken = getSessionToken();
-
-	if (sessionToken) {
-		headers.Authorization = `Bearer ${sessionToken}`;
-	}
-
-	return headers;
 }
 
 async function parseBackendError(response, fallbackMessage) {
@@ -58,6 +32,7 @@ export async function getAllUsers() {
 	try {
 		response = await fetch(`${ENV.API_URL}/usuarios`, {
 			method: "GET",
+			credentials: "include",
 			headers: buildJsonHeaders(),
 		});
 	} catch {
@@ -89,6 +64,7 @@ export async function getUserById(idUsuario) {
 	try {
 		response = await fetch(`${ENV.API_URL}/usuarios/${idUsuario}`, {
 			method: "GET",
+			credentials: "include",
 			headers: buildJsonHeaders(),
 		});
 	} catch {
@@ -121,6 +97,7 @@ export async function updateUserProfile(idUsuario, profileData) {
 	try {
 		response = await fetch(`${ENV.API_URL}/usuarios/${idUsuario}`, {
 			method: "PUT",
+			credentials: "include",
 			headers: buildJsonHeaders(),
 			body: JSON.stringify(profileData),
 		});
@@ -151,6 +128,7 @@ export async function updateUserRole(idUsuario, rol) {
 	try {
 		response = await fetch(`${ENV.API_URL}/usuarios/${idUsuario}/rol`, {
 			method: "PATCH",
+			credentials: "include",
 			headers: buildJsonHeaders(),
 			body: JSON.stringify({ rol }),
 		});
