@@ -63,8 +63,8 @@ Make HU1 and HU2 reachable through backend HTTP endpoints expected by the fronte
 
 - End-to-end registration/login must be tested with MySQL running and `schema.sql` applied.
 - Institutional email domain validation remains a product decision.
-- Authentication currently returns user data but does not implement token/session security.
-- HU3 and HU4 still need follow-up implementation slices for stronger profile refresh, admin role controls, and backend authorization enforcement.
+- Authentication now returns safe user data plus an in-memory `sessionToken`; protected user routes require `Authorization: Bearer <token>`.
+- HU3 profile refresh, HU4 admin role controls, and backend authorization enforcement are implemented in later slices below.
 
 ## Second implementation slice
 
@@ -143,7 +143,7 @@ Add the narrow HU3 profile refresh path so the profile view can load fresh user 
 
 ### Residual risks for this slice
 
-- This slice intentionally does not add auth tokens or backend authorization; `GET /api/usuarios/{id}` is currently unauthenticated like the existing user routes.
+- This slice originally did not add auth tokens or backend authorization; that limitation is superseded by the fourth authentication hardening slice below.
 
 ## MySQL runtime smoke test
 
@@ -172,7 +172,57 @@ Add the narrow HU3 profile refresh path so the profile view can load fresh user 
 ### Remaining runtime risks
 
 - The smoke test validates backend/API behavior; full browser interaction should still be demonstrated through the React UI for presentation.
-- Backend routes remain unauthenticated at API level; Sprint 1 currently relies on frontend/localStorage checks for admin UI gating.
+- Backend routes remained unauthenticated at API level at the time of this smoke test; this risk is superseded by the authentication hardening slice below.
+
+## Fourth implementation slice — Sprint 1 authentication hardening
+
+### Scope
+
+Make the Sprint 1 DoD claim "access is protected by authentication" defensible by adding backend-enforced session tokens to the existing registration/login/user flows without adding JWT, a database session table, or production-grade auth infrastructure.
+
+### Files changed
+
+| File | Purpose |
+| --- | --- |
+| `studymatch-backend/src/main/java/net/studymatch/api/service/SessionService.java` | Adds a Sprint 1 in-memory session-token service using Java `SecureRandom`, `Authorization: Bearer <token>` parsing, and current-user resolution from the database. |
+| `studymatch-backend/src/main/java/net/studymatch/api/service/UsuarioService.java` | Creates a session token on successful registration and login. |
+| `studymatch-backend/src/main/java/net/studymatch/api/dto/AuthResponseDTO.java` | Adds `sessionToken` to auth responses. |
+| `studymatch-backend/src/main/java/net/studymatch/api/controller/UsuarioController.java` | Enforces backend authorization for user routes: admin-only list/role updates, and same-user-or-admin profile reads/updates. |
+| `studymatch-backend/src/main/java/net/studymatch/api/config/CorsHelper.java` | Allows `PATCH` and `Authorization` in CORS preflight for the protected role update flow. |
+| `studymatch-frontend/src/core/services/userService.js` | Reads the stored session token and sends `Authorization: Bearer <token>` on user API requests. |
+| `studymatch-frontend/src/features/profile/Perfil.jsx` | Uses `userService` for protected profile requests and preserves the session token when refreshing profile data. |
+| `studymatch-frontend/src/features/auth/Login.jsx` | Persists `sessionToken` from login responses in localStorage for demo session continuity. |
+| `studymatch-frontend/src/features/auth/Registro.jsx` | Persists `sessionToken` from registration responses and redirects the newly registered user to their profile. |
+| `studymatch-frontend/src/components/Layout.jsx` | Clears both `currentUser` and `sessionToken` on logout. |
+| `studymatch-frontend/src/core/services/authService.js` | Documents that auth responses now include `sessionToken`. |
+| `openspec/harness-evidence.md` | Records this hardening slice, verification, and remaining limitations. |
+
+### Implemented behavior
+
+- `POST /api/auth/registrar` and `POST /api/auth/login` now return the safe user payload plus `sessionToken`.
+- User routes no longer trust `localStorage` or frontend role checks as the sole authorization control.
+- Missing or invalid bearer tokens return HTTP 401.
+- Authenticated non-admin users receive HTTP 403 when attempting admin-only operations.
+- Admin status is resolved from the current database row on each protected request, so role changes are reflected by active in-memory sessions.
+- Frontend user API requests send `Authorization: Bearer <sessionToken>` from localStorage; localStorage remains only demo session storage, not the authority for authorization.
+
+### Verification evidence for this slice
+
+| Check | Result |
+| --- | --- |
+| `cd studymatch-backend && mvn clean package` | Passed; backend compiled and jar with dependencies was built. Maven generated `studymatch-backend/target/`, which should not be included in a commit. |
+| `cd studymatch-frontend && npm run build && npm run lint` | Passed; Vite build completed and Oxlint reported no findings. |
+| `git diff --check` | Passed. |
+| MySQL connectivity | Passed with `studymatch_user` against `studymatch_db`. |
+| Runtime API smoke test | Passed against the rebuilt backend jar: registration/login return tokens; `GET /api/usuarios` without token returns 401; student token on admin list returns 403; same-user profile access returns 200; admin list and role patch return 200. |
+
+### Remaining limitations for this slice
+
+- Sessions are in-memory only and disappear when the Java process restarts; this is intentional for the academic Sprint 1 demo and not production-ready.
+- There is no backend logout/session revocation endpoint; frontend logout clears localStorage only.
+- Tokens are stored in localStorage for demo continuity, which is acceptable for this Sprint 1 scope but not hardened against XSS.
+- Password hashing remains the existing SHA-256 implementation; stronger password hashing is outside this focused slice.
+- The smoke test used a direct database role update to promote a newly created smoke user to `Administrador` before exercising admin-only endpoints.
 
 ## Recommended professor-facing explanation
 

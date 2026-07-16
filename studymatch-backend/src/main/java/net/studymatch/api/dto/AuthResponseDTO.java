@@ -14,6 +14,7 @@ public class AuthResponseDTO {
     private String ciclo;
     private String codigoAlumno;
     private String biografia;
+    private String sessionToken;
 
     /**
      * Constructor vacio, util para instanciacion generica o deserializacion.
@@ -100,5 +101,13 @@ public class AuthResponseDTO {
 
     public void setBiografia(String biografia) {
         this.biografia = biografia;
+    }
+
+    public String getSessionToken() {
+        return sessionToken;
+    }
+
+    public void setSessionToken(String sessionToken) {
+        this.sessionToken = sessionToken;
     }
 }

@@ -8,6 +8,43 @@ import { ENV } from "../../config/environment";
  * con fetch() y retorna promesas, o lanza errores descriptivos.
  */
 
+function getSessionToken() {
+	const tokenDirecto = localStorage.getItem("sessionToken");
+	if (tokenDirecto) {
+		return tokenDirecto;
+	}
+
+	const datosGuardados = localStorage.getItem("currentUser");
+	if (!datosGuardados) {
+		return "";
+	}
+
+	try {
+		const usuario = JSON.parse(datosGuardados);
+		return usuario.sessionToken || "";
+	} catch {
+		return "";
+	}
+}
+
+function buildJsonHeaders() {
+	const headers = {
+		"Content-Type": "application/json",
+	};
+	const sessionToken = getSessionToken();
+
+	if (sessionToken) {
+		headers.Authorization = `Bearer ${sessionToken}`;
+	}
+
+	return headers;
+}
+
+async function parseBackendError(response, fallbackMessage) {
+	const errorData = await response.json().catch(() => ({}));
+	return new Error(errorData.mensaje || fallbackMessage);
+}
+
 /**
  * Recupera la lista completa de usuarios registrados en StudyMatch.
  *
@@ -21,9 +58,7 @@ export async function getAllUsers() {
 	try {
 		response = await fetch(`${ENV.API_URL}/usuarios`, {
 			method: "GET",
-			headers: {
-				"Content-Type": "application/json",
-			},
+			headers: buildJsonHeaders(),
 		});
 	} catch {
 		throw new Error(
@@ -32,9 +67,9 @@ export async function getAllUsers() {
 	}
 
 	if (!response.ok) {
-		const errorData = await response.json().catch(() => ({}));
-		throw new Error(
-			errorData.mensaje || "No se pudo obtener la lista de usuarios.",
+		throw await parseBackendError(
+			response,
+			"No se pudo obtener la lista de usuarios.",
 		);
 	}
 
@@ -54,9 +89,7 @@ export async function getUserById(idUsuario) {
 	try {
 		response = await fetch(`${ENV.API_URL}/usuarios/${idUsuario}`, {
 			method: "GET",
-			headers: {
-				"Content-Type": "application/json",
-			},
+			headers: buildJsonHeaders(),
 		});
 	} catch {
 		throw new Error(
@@ -65,10 +98,40 @@ export async function getUserById(idUsuario) {
 	}
 
 	if (!response.ok) {
-		const errorData = await response.json().catch(() => ({}));
-		throw new Error(
-			errorData.mensaje || "No se pudo obtener la informacion del usuario.",
+		throw await parseBackendError(
+			response,
+			"No se pudo obtener la informacion del usuario.",
 		);
+	}
+
+	return response.json();
+}
+
+/**
+ * Actualiza los datos academicos del perfil de un usuario.
+ *
+ * @param {number|string} idUsuario - Identificador del usuario a modificar.
+ * @param {Object} profileData - Campos editables del perfil academico.
+ * @returns {Promise<Object>} Respuesta JSON del backend.
+ * @throws {Error} Si ocurre un error de red o el backend rechaza la actualizacion.
+ */
+export async function updateUserProfile(idUsuario, profileData) {
+	let response;
+
+	try {
+		response = await fetch(`${ENV.API_URL}/usuarios/${idUsuario}`, {
+			method: "PUT",
+			headers: buildJsonHeaders(),
+			body: JSON.stringify(profileData),
+		});
+	} catch {
+		throw new Error(
+			"No se pudo conectar con el servidor. Verifica tu conexion e intenta nuevamente.",
+		);
+	}
+
+	if (!response.ok) {
+		throw await parseBackendError(response, "No se pudo actualizar el perfil.");
 	}
 
 	return response.json();
@@ -88,9 +151,7 @@ export async function updateUserRole(idUsuario, rol) {
 	try {
 		response = await fetch(`${ENV.API_URL}/usuarios/${idUsuario}/rol`, {
 			method: "PATCH",
-			headers: {
-				"Content-Type": "application/json",
-			},
+			headers: buildJsonHeaders(),
 			body: JSON.stringify({ rol }),
 		});
 	} catch {
@@ -100,9 +161,9 @@ export async function updateUserRole(idUsuario, rol) {
 	}
 
 	if (!response.ok) {
-		const errorData = await response.json().catch(() => ({}));
-		throw new Error(
-			errorData.mensaje || "No se pudo actualizar el rol del usuario.",
+		throw await parseBackendError(
+			response,
+			"No se pudo actualizar el rol del usuario.",
 		);
 	}
 

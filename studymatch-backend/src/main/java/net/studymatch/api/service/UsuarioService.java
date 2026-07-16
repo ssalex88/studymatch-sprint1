@@ -19,6 +19,7 @@ import java.util.List;
 public class UsuarioService {
 
     private UsuarioRepository usuarioRepository = new UsuarioRepository();
+    private SessionService sessionService = new SessionService();
 
     private static final String ROL_POR_DEFECTO = "Estudiante";
 
@@ -50,7 +51,9 @@ public class UsuarioService {
 
         Usuario usuarioCreado = usuarioRepository.buscarPorCorreo(usuario.getCorreoInstitucional());
 
-        return mapearAAuthResponseDTO(usuarioCreado);
+        AuthResponseDTO respuesta = mapearAAuthResponseDTO(usuarioCreado);
+        respuesta.setSessionToken(sessionService.crearSesion(usuarioCreado));
+        return respuesta;
     }
 
     /**
@@ -71,7 +74,9 @@ public class UsuarioService {
             throw new SecurityException("Credenciales de acceso incorrectas.");
         }
 
-        return mapearAAuthResponseDTO(usuario);
+        AuthResponseDTO respuesta = mapearAAuthResponseDTO(usuario);
+        respuesta.setSessionToken(sessionService.crearSesion(usuario));
+        return respuesta;
     }
 
     /**

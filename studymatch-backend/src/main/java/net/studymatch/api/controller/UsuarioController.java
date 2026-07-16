@@ -5,6 +5,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import net.studymatch.api.config.CorsHelper;
 import net.studymatch.api.entity.Usuario;
+import net.studymatch.api.service.SessionService;
 import net.studymatch.api.service.UsuarioService;
 
 import java.io.BufferedReader;
@@ -20,14 +21,17 @@ import java.util.regex.Pattern;
 
 /**
  * Controlador HTTP encargado de la gestion general de usuarios de StudyMatch:
- * - GET  /api/usuarios          -> listar todos los usuarios
- * - GET  /api/usuarios/{id}     -> obtener un usuario sin contrasena
- * - PUT  /api/usuarios/{id}     -> actualizar el perfil academico de un usuario
- * - POST /api/usuarios/{id}/rol -> cambiar el rol de un usuario
+ * - GET  /api/usuarios          -> listar todos los usuarios (admin)
+ * - GET  /api/usuarios/{id}     -> obtener un usuario sin contrasena (mismo usuario o admin)
+ * - PUT  /api/usuarios/{id}     -> actualizar el perfil academico (mismo usuario o admin)
+ * - POST /api/usuarios/{id}/rol -> cambiar el rol de un usuario (admin)
  */
 public class UsuarioController implements HttpHandler {
 
+    private static final String ROL_ADMINISTRADOR = "Administrador";
+
     private UsuarioService usuarioService = new UsuarioService();
+    private SessionService sessionService = new SessionService();
     private Gson gson = new Gson();
 
     // Coincide con "/api/usuarios/{id}" (sin sufijo adicional despues del id).
@@ -54,16 +58,48 @@ public class UsuarioController implements HttpHandler {
             Matcher matcherPorId = PATRON_USUARIO_POR_ID.matcher(ruta);
 
             if ("GET".equalsIgnoreCase(metodo) && "/api/usuarios".equals(ruta)) {
+                Usuario usuarioActual = requerirUsuarioAutenticado(exchange);
+                if (usuarioActual == null) {
+                    return;
+                }
+                if (!esAdministrador(usuarioActual)) {
+                    enviarError(exchange, 403, "No tienes permisos para listar usuarios.");
+                    return;
+                }
                 manejarListarUsuarios(exchange);
             } else if ("GET".equalsIgnoreCase(metodo) && matcherPorId.matches()) {
                 int idUsuario = Integer.parseInt(matcherPorId.group(1));
+                Usuario usuarioActual = requerirUsuarioAutenticado(exchange);
+                if (usuarioActual == null) {
+                    return;
+                }
+                if (!puedeGestionarUsuario(usuarioActual, idUsuario)) {
+                    enviarError(exchange, 403, "No tienes permisos para consultar este usuario.");
+                    return;
+                }
                 manejarObtenerUsuario(exchange, idUsuario);
             } else if (("POST".equalsIgnoreCase(metodo) || "PATCH".equalsIgnoreCase(metodo))
                     && matcherRol.matches()) {
                 int idUsuario = Integer.parseInt(matcherRol.group(1));
+                Usuario usuarioActual = requerirUsuarioAutenticado(exchange);
+                if (usuarioActual == null) {
+                    return;
+                }
+                if (!esAdministrador(usuarioActual)) {
+                    enviarError(exchange, 403, "No tienes permisos para cambiar roles.");
+                    return;
+                }
                 manejarCambioDeRol(exchange, idUsuario);
             } else if ("PUT".equalsIgnoreCase(metodo) && matcherPorId.matches()) {
                 int idUsuario = Integer.parseInt(matcherPorId.group(1));
+                Usuario usuarioActual = requerirUsuarioAutenticado(exchange);
+                if (usuarioActual == null) {
+                    return;
+                }
+                if (!puedeGestionarUsuario(usuarioActual, idUsuario)) {
+                    enviarError(exchange, 403, "No tienes permisos para actualizar este usuario.");
+                    return;
+                }
                 manejarActualizarPerfil(exchange, idUsuario);
             } else {
                 enviarError(exchange, 404, "Ruta no encontrada.");
@@ -157,6 +193,22 @@ public class UsuarioController implements HttpHandler {
         } else {
             enviarError(exchange, 400, "No se pudo actualizar el rol. Verifica el ID del usuario.");
         }
+    }
+
+    private Usuario requerirUsuarioAutenticado(HttpExchange exchange) throws Exception {
+        Usuario usuarioActual = sessionService.obtenerUsuarioAutenticado(exchange);
+        if (usuarioActual == null) {
+            enviarError(exchange, 401, "Token de sesion ausente o invalido.");
+        }
+        return usuarioActual;
+    }
+
+    private boolean puedeGestionarUsuario(Usuario usuarioActual, int idUsuarioObjetivo) {
+        return esAdministrador(usuarioActual) || usuarioActual.getIdUsuario() == idUsuarioObjetivo;
+    }
+
+    private boolean esAdministrador(Usuario usuario) {
+        return usuario != null && ROL_ADMINISTRADOR.equals(usuario.getRol());
     }
 
     /**

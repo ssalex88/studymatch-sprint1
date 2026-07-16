@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { ENV } from "../../config/environment";
-import { getUserById } from "../../core/services/userService";
+import {
+	getUserById,
+	updateUserProfile,
+} from "../../core/services/userService";
 
 const CARRERAS = [
 	"Ingeniería de Sistemas",
@@ -88,12 +90,13 @@ export default function Perfil() {
 						return;
 					}
 
-					localStorage.setItem(
-						"currentUser",
-						JSON.stringify(usuarioActualizado),
-					);
-					setUsuario(usuarioActualizado);
-					setFormData(mapearPerfilAFormulario(usuarioActualizado));
+					const usuarioConSesion = {
+						...usuarioParseado,
+						...usuarioActualizado,
+					};
+					localStorage.setItem("currentUser", JSON.stringify(usuarioConSesion));
+					setUsuario(usuarioConSesion);
+					setFormData(mapearPerfilAFormulario(usuarioConSesion));
 				})
 				.catch((err) => {
 					if (!componenteActivo) {
@@ -138,23 +141,7 @@ export default function Perfil() {
 
 		setGuardando(true);
 		try {
-			const response = await fetch(
-				`${ENV.API_URL}/usuarios/${usuario.idUsuario}`,
-				{
-					method: "PUT",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify(formData),
-				},
-			);
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(
-					errorData.mensaje || "No se pudo actualizar el perfil.",
-				);
-			}
+			await updateUserProfile(usuario.idUsuario, formData);
 
 			const usuarioActualizado = { ...usuario, ...formData };
 			localStorage.setItem("currentUser", JSON.stringify(usuarioActualizado));

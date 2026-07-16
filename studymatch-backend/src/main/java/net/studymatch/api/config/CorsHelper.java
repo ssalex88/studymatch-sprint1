@@ -11,7 +11,7 @@ import java.io.IOException;
 public class CorsHelper {
 
     private static final String ALLOW_ORIGIN = "*";
-    private static final String ALLOW_METHODS = "GET, POST, PUT, DELETE, OPTIONS";
+    private static final String ALLOW_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
     private static final String ALLOW_HEADERS = "Content-Type, Authorization";
 
     private CorsHelper() {
