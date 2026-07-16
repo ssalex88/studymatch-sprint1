@@ -314,6 +314,56 @@ Complete the remaining Sprint 1 authentication hardening items by replacing SHA-
 - Password hashing is now PBKDF2 for new users and upgraded legacy users, but there is still no password reset or forced migration workflow for users who never log in.
 - `currentUser` in localStorage remains only a non-authoritative UI cache and must not be treated as authorization authority.
 
+## Docker support slice — Sprint 1 local orchestration
+
+### Scope
+
+Make the full StudyMatch Sprint 1 stack runnable through one Docker Compose command while preserving the existing local development path.
+
+### Files changed
+
+| File | Purpose |
+| --- | --- |
+| `docker-compose.yml` | Defines MySQL 8.0, backend, and frontend services with local host ports and a persistent MySQL volume. |
+| `studymatch-backend/Dockerfile` | Builds the Java 21 Maven backend and runs the assembled jar on a Java 21 JRE image. |
+| `studymatch-backend/.dockerignore` | Excludes Maven/build/editor noise from the backend Docker context. |
+| `studymatch-backend/src/main/java/net/studymatch/api/config/DatabaseConfig.java` | Reads database connection settings from environment variables while keeping local defaults. |
+| `studymatch-backend/src/main/java/net/studymatch/api/config/CorsHelper.java` | Reads the credentialed frontend origin from `FRONTEND_ORIGIN`, defaulting to local Vite. |
+| `studymatch-frontend/Dockerfile` | Installs frontend dependencies and runs the Vite development server on `0.0.0.0:5173`. |
+| `studymatch-frontend/.dockerignore` | Excludes `node_modules`, `dist`, and local/editor noise from the frontend Docker context. |
+| `studymatch-frontend/src/config/environment.js` | Reads `VITE_API_URL` with a `http://localhost:8080/api` browser default. |
+| `README.md` | Documents Docker Compose startup, URLs, schema initialization, and volume reset. |
+| `openspec/harness-evidence.md` | Records this Dockerization decision and evidence. |
+
+### Implemented behavior
+
+- `docker compose up --build` starts MySQL, the Java backend, and the Vite frontend.
+- MySQL initializes `studymatch_db` with `studymatch_user` / `123456` and loads `studymatch-database/schema.sql` on first volume creation.
+- Host MySQL is mapped to `localhost:3307` to avoid the common local `3306` conflict; backend uses Docker DNS `mysql:3306` internally.
+- Backend database settings can be overridden with `DB_URL` or the individual `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` variables.
+- Backend CORS keeps credential support and allows `FRONTEND_ORIGIN`, defaulting to `http://localhost:5173`.
+- The frontend uses `VITE_API_URL`, defaulting to `http://localhost:8080/api` because browser requests go through host-published ports rather than Docker DNS.
+- The frontend Docker image intentionally runs Vite dev server for the Sprint 1 local-demo workflow instead of adding an Nginx production serving layer.
+
+### Verification evidence for this slice
+
+| Check | Result |
+| --- | --- |
+| `cd studymatch-backend && mvn clean package` | Passed; backend compiled 12 source files and built the jar with dependencies. Maven reported no tests to run. |
+| `cd studymatch-frontend && npm run build && npm run lint` | Passed; Vite production build completed and Oxlint reported no findings. |
+| `docker compose config` | Passed after Docker Desktop WSL integration became available. |
+| `docker compose up --build -d` | Passed; built backend/frontend images, initialized MySQL, and started all three containers. |
+| Docker container health | Passed; `docker compose ps` showed MySQL healthy and backend/frontend running on ports 8080/5173. |
+| Docker HTTP smoke | Passed; frontend returned HTTP 200, backend protected route returned expected HTTP 401 without session, registration returned HTTP 201, cookie-authenticated profile returned HTTP 200, and schema tables were present in MySQL. |
+| `git diff --check` | Passed after implementation and artifact cleanup. |
+| Generated artifact cleanup | Removed frontend `dist/`, removed untracked backend jar/Maven archiver outputs, and restored pre-existing tracked backend `target/` files after the Maven build. |
+
+### Remaining limitations for this slice
+
+- Docker Compose starts the services, but application readiness still depends on MySQL accepting connections and the backend being queried after startup.
+- The Docker frontend uses Vite dev server for simplicity; it is suitable for Sprint 1 local demonstration, not production serving.
+- The session cookie intentionally remains localhost/development-oriented as documented in earlier auth hardening slices.
+
 ## Recommended professor-facing explanation
 
 Saving the chat is useful as supplementary evidence, but it is not enough by itself. The stronger evidence is this repository-local trail:

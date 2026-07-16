@@ -11,9 +11,17 @@ import java.sql.SQLException;
  */
 public class DatabaseConfig {
 
-    private static final String URL = "jdbc:mysql://localhost:3306/studymatch_db";
-    private static final String USUARIO = "studymatch_user";
-    private static final String CLAVE = "123456";
+    private static final String DB_URL = obtenerVariableEntorno("DB_URL", null);
+    private static final String DB_HOST = obtenerVariableEntorno("DB_HOST", "localhost");
+    private static final String DB_PORT = obtenerVariableEntorno("DB_PORT", "3306");
+    private static final String DB_NAME = obtenerVariableEntorno("DB_NAME", "studymatch_db");
+    private static final String DB_USER = obtenerVariableEntorno("DB_USER", "studymatch_user");
+    private static final String DB_PASSWORD = obtenerVariableEntorno("DB_PASSWORD", "123456");
+
+    private static final String URL = DB_URL != null
+            ? DB_URL
+            : "jdbc:mysql://" + DB_HOST + ":" + DB_PORT + "/" + DB_NAME
+                    + "?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC";
 
     static {
         try {
@@ -39,6 +47,14 @@ public class DatabaseConfig {
      * @throws SQLException si ocurre un error al establecer la conexion.
      */
     public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(URL, USUARIO, CLAVE);
+        return DriverManager.getConnection(URL, DB_USER, DB_PASSWORD);
+    }
+
+    private static String obtenerVariableEntorno(String nombre, String valorPorDefecto) {
+        String valor = System.getenv(nombre);
+        if (valor == null || valor.isBlank()) {
+            return valorPorDefecto;
+        }
+        return valor;
     }
 }

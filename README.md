@@ -1,6 +1,36 @@
 # 🎓 StudyMatch - Arquitectura Base (Sprint 1)
 
-Este proyecto está dividido en tres capas totalmente desacopladas que se ejecutan por separado: **Frontend**, **Backend** y **Base de Datos**. Sigue estas instrucciones para levantar cada entorno de manera independiente en tu máquina local.
+Este proyecto está dividido en tres capas totalmente desacopladas: **Frontend**, **Backend** y **Base de Datos**. Podés levantar todo el entorno con Docker Compose o ejecutar cada capa de manera independiente en tu máquina local.
+
+---
+
+## 🐳 Ejecución rápida con Docker Compose
+
+Desde la raíz del repositorio:
+
+```bash
+docker compose up --build
+```
+
+Servicios y URLs:
+
+- Frontend: <http://localhost:5173>
+- Backend API: <http://localhost:8080/api>
+- MySQL: disponible en el host como `localhost:3307` para evitar conflictos con un MySQL local en `3306`.
+
+El contenedor `mysql` crea la base `studymatch_db`, el usuario `studymatch_user` con contraseña `123456`, y carga `studymatch-database/schema.sql` automáticamente desde `/docker-entrypoint-initdb.d/` cuando el volumen se inicializa por primera vez.
+
+Comandos útiles:
+
+```bash
+# Detener contenedores sin borrar datos
+docker compose down
+
+# Detener y resetear la base de datos Docker
+docker compose down -v
+```
+
+Si querés cambiar la URL de API del frontend o el origen permitido por CORS, ajustá `VITE_API_URL` y `FRONTEND_ORIGIN` en `docker-compose.yml`.
 
 ---
 
@@ -8,9 +38,9 @@ Este proyecto está dividido en tres capas totalmente desacopladas que se ejecut
 
 Asegúrate de contar con las siguientes versiones exactas para evitar conflictos:
 
-* **Java Development Kit (JDK):** Versión 21 ☕
-* **Node.js:** Versión 18 o superior 🟢
-* **Motor de Base de Datos:** MySQL Server 8.x 🐬
+- **Java Development Kit (JDK):** Versión 21 ☕
+- **Node.js:** Versión 18 o superior 🟢
+- **Motor de Base de Datos:** MySQL Server 8.x 🐬
 
 ---
 
@@ -38,15 +68,18 @@ La persistencia de datos corre a nivel local.
 El servidor es una aplicación standalone basada en el `HttpServer` nativo de Java.
 
 1. Abre la carpeta del backend en tu IDE (VS Code, IntelliJ o Eclipse).
-2. Abre el archivo de configuración de base de datos (`DatabaseConfig.java` o el correspondiente).
-3. **Ajuste Obligatorio:** Reemplaza las credenciales de conexión con tu usuario y contraseña local de MySQL:
+2. Verificá que tu MySQL local tenga la base `studymatch_db`, el usuario `studymatch_user` y la contraseña `123456`, o definí variables de entorno antes de iniciar el backend:
 
-   ```java
-   // Verifica que coincida con tu entorno local
-   String url = "jdbc:mysql://localhost:3306/studymatch";
-   String user = "tu_usuario_mysql";
-   String password = "tu_contrasena_mysql";
-4. Ejecuta la clase principal (`Main.java` o la clase que contiene tu método `public static void main` y levanta el servidor).
+   ```bash
+   export DB_HOST=localhost
+   export DB_PORT=3306
+   export DB_NAME=studymatch_db
+   export DB_USER=studymatch_user
+   export DB_PASSWORD=123456
+   # Opcional: DB_URL puede reemplazar host/puerto/nombre.
+   ```
+
+3. Ejecuta la clase principal (`App.java`) o el jar generado con Maven.
 
 > 💡 **Nota:** El backend quedará escuchando peticiones de la API en el puerto: `http://localhost:8080`
 

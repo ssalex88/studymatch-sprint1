@@ -10,7 +10,7 @@ import java.io.IOException;
  */
 public class CorsHelper {
 
-    private static final String ALLOW_ORIGIN = "http://localhost:5173";
+    private static final String ALLOW_ORIGIN = obtenerVariableEntorno("FRONTEND_ORIGIN", "http://localhost:5173");
     private static final String ALLOW_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
     private static final String ALLOW_HEADERS = "Content-Type, Authorization";
     private static final String ALLOW_CREDENTIALS = "true";
@@ -53,5 +53,13 @@ public class CorsHelper {
             return true;
         }
         return false;
+    }
+
+    private static String obtenerVariableEntorno(String nombre, String valorPorDefecto) {
+        String valor = System.getenv(nombre);
+        if (valor == null || valor.isBlank()) {
+            return valorPorDefecto;
+        }
+        return valor;
     }
 }
