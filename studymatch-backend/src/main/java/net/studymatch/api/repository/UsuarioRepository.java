@@ -39,6 +39,9 @@ public class UsuarioRepository {
     private static final String SQL_UPDATE_ROL =
             "UPDATE usuarios SET rol = ? WHERE id_usuario = ?";
 
+    private static final String SQL_UPDATE_CONTRASENA =
+            "UPDATE usuarios SET contrasena = ? WHERE id_usuario = ?";
+
     /**
      * Inserta un nuevo usuario en la tabla usuarios.
      *
@@ -166,6 +169,28 @@ public class UsuarioRepository {
              PreparedStatement statement = conexion.prepareStatement(SQL_UPDATE_ROL)) {
 
             statement.setString(1, nuevoRol);
+            statement.setInt(2, idUsuario);
+
+            int filasAfectadas = statement.executeUpdate();
+            return filasAfectadas == 1;
+        }
+    }
+
+    /**
+     * Actualiza la contrasena almacenada de un usuario.
+     * Se usa para migrar hashes SHA-256 legacy al formato PBKDF2 vigente
+     * despues de un login correcto.
+     *
+     * @param idUsuario             el identificador del usuario a actualizar.
+     * @param contrasenaActualizada el hash de contrasena en formato persistible.
+     * @return true si se actualizo exactamente un registro, false en caso contrario.
+     * @throws SQLException si ocurre un error durante la operacion con la base de datos.
+     */
+    public boolean actualizarContrasena(int idUsuario, String contrasenaActualizada) throws SQLException {
+        try (Connection conexion = DatabaseConfig.getConnection();
+             PreparedStatement statement = conexion.prepareStatement(SQL_UPDATE_CONTRASENA)) {
+
+            statement.setString(1, contrasenaActualizada);
             statement.setInt(2, idUsuario);
 
             int filasAfectadas = statement.executeUpdate();

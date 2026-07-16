@@ -6,6 +6,7 @@ import net.studymatch.api.repository.UsuarioRepository;
 
 import java.security.SecureRandom;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,10 +22,11 @@ import java.util.concurrent.ConcurrentMap;
 public class SessionService {
 
     public static final String SESSION_COOKIE_NAME = "studyMatchSession";
+    public static final int SESSION_DURATION_SECONDS = 8 * 60 * 60;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final Base64.Encoder TOKEN_ENCODER = Base64.getUrlEncoder().withoutPadding();
-    private static final ConcurrentMap<String, Integer> SESIONES = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, SessionRecord> SESIONES = new ConcurrentHashMap<>();
     private static final int TOKEN_BYTES = 32;
 
     private UsuarioRepository usuarioRepository = new UsuarioRepository();
@@ -40,7 +42,10 @@ public class SessionService {
         SECURE_RANDOM.nextBytes(bytes);
         String token = TOKEN_ENCODER.encodeToString(bytes);
 
-        SESIONES.put(token, usuario.getIdUsuario());
+        SESIONES.put(token, new SessionRecord(
+                usuario.getIdUsuario(),
+                Instant.now().plusSeconds(SESSION_DURATION_SECONDS)
+        ));
         return token;
     }
 
@@ -69,14 +74,19 @@ public class SessionService {
             return null;
         }
 
-        Integer idUsuario = SESIONES.get(token);
-        if (idUsuario == null) {
+        SessionRecord sesion = SESIONES.get(token);
+        if (sesion == null) {
             return null;
         }
 
-        Usuario usuario = usuarioRepository.buscarPorId(idUsuario);
+        if (sesion.estaExpirada()) {
+            SESIONES.remove(token, sesion);
+            return null;
+        }
+
+        Usuario usuario = usuarioRepository.buscarPorId(sesion.idUsuario());
         if (usuario == null) {
-            SESIONES.remove(token);
+            SESIONES.remove(token, sesion);
             return null;
         }
 
@@ -148,5 +158,11 @@ public class SessionService {
 
         String token = valor.substring(prefijo.length()).trim();
         return token.isEmpty() ? null : token;
+    }
+
+    private record SessionRecord(int idUsuario, Instant expiresAt) {
+        private boolean estaExpirada() {
+            return !expiresAt.isAfter(Instant.now());
+        }
     }
 }

@@ -270,6 +270,50 @@ Replace frontend localStorage token authorization with HttpOnly cookie-backed se
 - Password hashing remains the existing SHA-256 implementation; stronger password hashing is outside this focused follow-up.
 - `currentUser` in localStorage is still a convenience UI cache and must not be treated as authorization authority.
 
+## Final Sprint 1 DoD authentication hardening slice
+
+### Scope
+
+Complete the remaining Sprint 1 authentication hardening items by replacing SHA-256 password storage with PBKDF2 and enforcing server-side session expiration in the existing in-memory session service.
+
+### Files changed
+
+| File | Purpose |
+| --- | --- |
+| `studymatch-backend/src/main/java/net/studymatch/api/service/UsuarioService.java` | Replaces SHA-256 registration hashing with `PBKDF2WithHmacSHA256`, verifies PBKDF2 hashes with constant-time comparison, and supports legacy 64-character SHA-256 login with automatic upgrade after successful authentication. |
+| `studymatch-backend/src/main/java/net/studymatch/api/repository/UsuarioRepository.java` | Adds a narrow password-update method used only for legacy hash migration after a successful login. |
+| `studymatch-backend/src/main/java/net/studymatch/api/service/SessionService.java` | Stores an in-memory session record with user id and expiration timestamp, rejects expired sessions, removes expired/missing-user sessions, and keeps logout invalidation. |
+| `studymatch-backend/src/main/java/net/studymatch/api/controller/AuthController.java` | Uses the shared session duration for the HttpOnly cookie `Max-Age` so cookie lifetime and server-side expiration stay aligned. |
+| `openspec/harness-evidence.md` | Records final hardening behavior, verification, smoke evidence, and remaining limitations. |
+
+### Implemented behavior
+
+- New registrations store passwords as `PBKDF2$iterations$saltBase64$hashBase64` using native Java `SecureRandom`, `SecretKeyFactory`, and `PBEKeySpec`.
+- PBKDF2 login verification derives the candidate hash from the stored iteration count, salt, and stored hash length, then compares with `MessageDigest.isEqual`.
+- Existing 64-character SHA-256 password rows remain login-compatible; after a successful legacy login, the stored password is upgraded to the PBKDF2 format.
+- Server sessions are still intentionally in-memory for Sprint 1, but each session now stores both `idUsuario` and `expiresAt`.
+- Protected routes reject expired sessions and remove them from the in-memory map; logout still removes the active token and clears the cookie.
+- The HttpOnly cookie `Max-Age` and the server-side session lifetime share the same 8-hour duration constant.
+
+### Verification evidence for this slice
+
+| Check | Result |
+| --- | --- |
+| `cd studymatch-backend && mvn clean package` | Passed; backend compiled 12 source files and built the jar with dependencies. Maven reported no tests to run. |
+| `cd studymatch-frontend && npm run build && npm run lint` | Passed; Vite production build completed and Oxlint reported no findings. Generated `dist/` artifacts were removed afterward. |
+| MySQL connectivity | Passed with `studymatch_user` against `studymatch_db`. |
+| Runtime API smoke test | Passed against the rebuilt backend jar using curl cookie jars: registration created a `PBKDF2$...` password row, login succeeded, a protected profile route worked with the cookie, logout invalidated the server-side session, the same protected route returned 401 after logout, and a manually inserted legacy SHA-256 user logged in successfully and was upgraded to PBKDF2. Smoke users were deleted afterward. |
+| `git diff --check` | Passed after implementation and artifact cleanup. |
+| Generated artifact cleanup | Backend jar outputs, untracked compiled classes, Maven archiver output, and frontend `dist/` were removed after verification; pre-existing tracked backend `target/` files were restored to avoid unrelated generated-file noise. |
+
+### Remaining limitations for this slice
+
+- Sessions remain in-memory only and disappear when the Java process restarts; this is acceptable for Sprint 1 but not production-grade.
+- Session cleanup is lazy: expired sessions are removed when their token is presented, not by a background reaper.
+- The cookie intentionally omits `Secure` for localhost HTTP development; production HTTPS must add `Secure`.
+- Password hashing is now PBKDF2 for new users and upgraded legacy users, but there is still no password reset or forced migration workflow for users who never log in.
+- `currentUser` in localStorage remains only a non-authoritative UI cache and must not be treated as authorization authority.
+
 ## Recommended professor-facing explanation
 
 Saving the chat is useful as supplementary evidence, but it is not enough by itself. The stronger evidence is this repository-local trail:

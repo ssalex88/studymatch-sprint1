@@ -6,11 +6,17 @@ import net.studymatch.api.dto.UsuarioRegistroDTO;
 import net.studymatch.api.entity.Usuario;
 import net.studymatch.api.repository.UsuarioRepository;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
+import java.util.regex.Pattern;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 
 /**
  * Capa de logica de negocio para todo lo relacionado con la autenticacion
@@ -22,11 +28,20 @@ public class UsuarioService {
     private SessionService sessionService = new SessionService();
 
     private static final String ROL_POR_DEFECTO = "Estudiante";
+    private static final String PBKDF2_ALGORITHM = "PBKDF2WithHmacSHA256";
+    private static final String PBKDF2_PREFIX = "PBKDF2";
+    private static final int PBKDF2_ITERATIONS = 120_000;
+    private static final int PBKDF2_SALT_BYTES = 16;
+    private static final int PBKDF2_HASH_BITS = 256;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder();
+    private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
+    private static final Pattern HASH_SHA256_LEGACY = Pattern.compile("^[a-fA-F0-9]{64}$");
 
     /**
      * Registra un nuevo usuario en el sistema.
      * Valida que el correo institucional no este previamente registrado,
-     * cifra la contrasena con SHA-256, asigna un rol por defecto si no viene
+     * cifra la contrasena con PBKDF2, asigna un rol por defecto si no viene
      * especificado, persiste el usuario y retorna sus datos seguros.
      *
      * @param dto los datos de registro capturados desde el frontend.
@@ -42,7 +57,7 @@ public class UsuarioService {
         Usuario usuario = new Usuario();
         usuario.setNombreCompleto(dto.getNombreCompleto());
         usuario.setCorreoInstitucional(dto.getCorreoInstitucional());
-        usuario.setContrasena(cifrarSha256(dto.getContrasena()));
+        usuario.setContrasena(cifrarContrasena(dto.getContrasena()));
         usuario.setCarrera(dto.getCarrera());
         usuario.setCiclo(dto.getCiclo());
         usuario.setRol(ROL_POR_DEFECTO);
@@ -69,10 +84,12 @@ public class UsuarioService {
             throw new SecurityException("Credenciales de acceso incorrectas.");
         }
 
-        String contrasenaCifrada = cifrarSha256(dto.getContrasena());
-        if (!contrasenaCifrada.equals(usuario.getContrasena())) {
+        String contrasenaAlmacenada = usuario.getContrasena();
+        if (!verificarContrasena(dto.getContrasena(), contrasenaAlmacenada)) {
             throw new SecurityException("Credenciales de acceso incorrectas.");
         }
+
+        actualizarHashLegacySiCorresponde(usuario, dto.getContrasena(), contrasenaAlmacenada);
 
         AuthResponseDTO respuesta = mapearAAuthResponseDTO(usuario);
         respuesta.setSessionToken(sessionService.crearSesion(usuario));
@@ -171,26 +188,114 @@ public class UsuarioService {
     }
 
     /**
-     * Cifra un texto plano utilizando el algoritmo SHA-256 nativo de Java,
-     * devolviendo el resultado como una cadena hexadecimal en minusculas.
+     * Cifra una contrasena usando PBKDF2WithHmacSHA256 con sal aleatoria.
+     * El resultado es autocontenido: PBKDF2$iterations$saltBase64$hashBase64.
      *
-     * @param textoPlano el texto a cifrar (por ejemplo, una contrasena).
-     * @return el hash SHA-256 en formato hexadecimal.
-     * @throws NoSuchAlgorithmException si el algoritmo SHA-256 no esta disponible en el entorno.
+     * @param textoPlano la contrasena en texto plano recibida desde el login o registro.
+     * @return hash persistible en formato PBKDF2 autocontenido.
+     * @throws Exception si el algoritmo PBKDF2 no esta disponible.
      */
-    private String cifrarSha256(String textoPlano) throws NoSuchAlgorithmException {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hashBytes = digest.digest(textoPlano.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    private String cifrarContrasena(String textoPlano) throws Exception {
+        byte[] salt = new byte[PBKDF2_SALT_BYTES];
+        SECURE_RANDOM.nextBytes(salt);
 
-        StringBuilder hexBuilder = new StringBuilder();
-        for (byte b : hashBytes) {
-            String hex = Integer.toHexString(0xff & b);
-            if (hex.length() == 1) {
-                hexBuilder.append('0');
-            }
-            hexBuilder.append(hex);
+        byte[] hash = calcularPbkdf2(textoPlano, salt, PBKDF2_ITERATIONS, PBKDF2_HASH_BITS);
+
+        return PBKDF2_PREFIX + "$"
+                + PBKDF2_ITERATIONS + "$"
+                + BASE64_ENCODER.encodeToString(salt) + "$"
+                + BASE64_ENCODER.encodeToString(hash);
+    }
+
+    private boolean verificarContrasena(String textoPlano, String contrasenaAlmacenada) throws Exception {
+        if (contrasenaAlmacenada == null || contrasenaAlmacenada.trim().isEmpty()) {
+            return false;
         }
 
-        return hexBuilder.toString();
+        if (esFormatoPbkdf2(contrasenaAlmacenada)) {
+            return verificarPbkdf2(textoPlano, contrasenaAlmacenada);
+        }
+
+        if (esHashSha256Legacy(contrasenaAlmacenada)) {
+            return verificarSha256Legacy(textoPlano, contrasenaAlmacenada);
+        }
+
+        return false;
+    }
+
+    private boolean verificarPbkdf2(String textoPlano, String contrasenaAlmacenada) throws Exception {
+        String[] partes = contrasenaAlmacenada.split("\\$", -1);
+        if (partes.length != 4 || !PBKDF2_PREFIX.equals(partes[0])) {
+            return false;
+        }
+
+        try {
+            int iteraciones = Integer.parseInt(partes[1]);
+            byte[] salt = BASE64_DECODER.decode(partes[2]);
+            byte[] hashAlmacenado = BASE64_DECODER.decode(partes[3]);
+
+            if (iteraciones <= 0 || salt.length == 0 || hashAlmacenado.length == 0) {
+                return false;
+            }
+
+            byte[] hashCalculado = calcularPbkdf2(
+                    textoPlano,
+                    salt,
+                    iteraciones,
+                    hashAlmacenado.length * 8
+            );
+            return MessageDigest.isEqual(hashAlmacenado, hashCalculado);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private boolean verificarSha256Legacy(String textoPlano, String hashAlmacenadoHex) throws Exception {
+        byte[] hashCalculado = calcularSha256(textoPlano);
+        byte[] hashAlmacenado = convertirHexABytes(hashAlmacenadoHex);
+        return MessageDigest.isEqual(hashAlmacenado, hashCalculado);
+    }
+
+    private void actualizarHashLegacySiCorresponde(
+            Usuario usuario,
+            String textoPlano,
+            String contrasenaAlmacenada
+    ) throws Exception {
+        if (esHashSha256Legacy(contrasenaAlmacenada)) {
+            usuarioRepository.actualizarContrasena(usuario.getIdUsuario(), cifrarContrasena(textoPlano));
+        }
+    }
+
+    private boolean esFormatoPbkdf2(String contrasenaAlmacenada) {
+        return contrasenaAlmacenada.startsWith(PBKDF2_PREFIX + "$");
+    }
+
+    private boolean esHashSha256Legacy(String contrasenaAlmacenada) {
+        return HASH_SHA256_LEGACY.matcher(contrasenaAlmacenada).matches();
+    }
+
+    private byte[] calcularPbkdf2(String textoPlano, byte[] salt, int iteraciones, int hashBits) throws Exception {
+        char[] caracteresContrasena = textoPlano.toCharArray();
+        PBEKeySpec spec = new PBEKeySpec(caracteresContrasena, salt, iteraciones, hashBits);
+        try {
+            SecretKeyFactory factory = SecretKeyFactory.getInstance(PBKDF2_ALGORITHM);
+            return factory.generateSecret(spec).getEncoded();
+        } finally {
+            spec.clearPassword();
+            Arrays.fill(caracteresContrasena, '\0');
+        }
+    }
+
+    private byte[] calcularSha256(String textoPlano) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        return digest.digest(textoPlano.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private byte[] convertirHexABytes(String hex) {
+        byte[] bytes = new byte[hex.length() / 2];
+        for (int i = 0; i < hex.length(); i += 2) {
+            bytes[i / 2] = (byte) Integer.parseInt(hex.substring(i, i + 2), 16);
+        }
+        return bytes;
     }
 }

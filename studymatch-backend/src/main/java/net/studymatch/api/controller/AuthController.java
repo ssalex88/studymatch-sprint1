@@ -31,7 +31,6 @@ public class AuthController implements HttpHandler {
     private static final String RUTA_REGISTRO = "/api/auth/registrar";
     private static final String RUTA_LOGIN = "/api/auth/login";
     private static final String RUTA_LOGOUT = "/api/auth/logout";
-    private static final int SESSION_COOKIE_MAX_AGE_SECONDS = 8 * 60 * 60;
     private static final Pattern PATRON_EMAIL_GENERICO =
             Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
@@ -178,7 +177,7 @@ public class AuthController implements HttpHandler {
 
     private String construirCookieSesion(String token) {
         return SessionService.SESSION_COOKIE_NAME + "=" + token
-                + "; HttpOnly; SameSite=Lax; Path=/; Max-Age=" + SESSION_COOKIE_MAX_AGE_SECONDS;
+                + "; HttpOnly; SameSite=Lax; Path=/; Max-Age=" + SessionService.SESSION_DURATION_SECONDS;
     }
 
     /**
