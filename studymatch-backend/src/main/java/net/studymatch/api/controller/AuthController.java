@@ -31,6 +31,8 @@ public class AuthController implements HttpHandler {
     private static final String RUTA_REGISTRO = "/api/auth/registrar";
     private static final String RUTA_LOGIN = "/api/auth/login";
     private static final String RUTA_LOGOUT = "/api/auth/logout";
+    private static final String DOMINIO_INSTITUCIONAL = "@aloe.ulima.edu.pe";
+    private static final int LONGITUD_MINIMA_CONTRASENA = 8;
     private static final Pattern PATRON_EMAIL_GENERICO =
             Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
@@ -121,9 +123,8 @@ public class AuthController implements HttpHandler {
     }
 
     /**
-     * Valida los campos minimos requeridos para registrar un usuario.
-     * La validacion de dominio institucional queda fuera de esta slice porque
-     * el dominio esperado no esta definido; solo se valida formato generico.
+     * Valida los campos requeridos para registrar un usuario.
+     * El registro queda limitado al dominio institucional de Ulima.
      */
     private void validarRegistro(UsuarioRegistroDTO dto) {
         if (dto == null) {
@@ -131,7 +132,8 @@ public class AuthController implements HttpHandler {
         }
         validarCampoObligatorio(dto.getNombreCompleto(), "nombreCompleto");
         validarCorreo(dto.getCorreoInstitucional());
-        validarCampoObligatorio(dto.getContrasena(), "contrasena");
+        validarDominioInstitucional(dto.getCorreoInstitucional());
+        validarContrasena(dto.getContrasena());
         validarCampoObligatorio(dto.getCarrera(), "carrera");
         validarCampoObligatorio(dto.getCiclo(), "ciclo");
     }
@@ -151,6 +153,23 @@ public class AuthController implements HttpHandler {
         validarCampoObligatorio(correo, "correoInstitucional");
         if (!PATRON_EMAIL_GENERICO.matcher(correo.trim()).matches()) {
             throw new IllegalArgumentException("El correo institucional debe tener un formato valido.");
+        }
+    }
+
+    private void validarDominioInstitucional(String correo) {
+        if (!correo.trim().toLowerCase().endsWith(DOMINIO_INSTITUCIONAL)) {
+            throw new IllegalArgumentException(
+                    "El correo debe pertenecer al dominio institucional " + DOMINIO_INSTITUCIONAL + "."
+            );
+        }
+    }
+
+    private void validarContrasena(String contrasena) {
+        validarCampoObligatorio(contrasena, "contrasena");
+        if (contrasena.trim().length() < LONGITUD_MINIMA_CONTRASENA) {
+            throw new IllegalArgumentException(
+                    "La contrasena debe tener al menos " + LONGITUD_MINIMA_CONTRASENA + " caracteres."
+            );
         }
     }
 

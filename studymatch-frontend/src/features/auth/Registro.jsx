@@ -1,6 +1,6 @@
 // src/features/auth/Registro.jsx
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../../core/services/authService";
 import { cacheCurrentUserForUi } from "../../core/services/currentUserCache";
@@ -31,6 +31,9 @@ const CICLOS = [
 	"9no ciclo",
 	"10mo ciclo",
 ];
+
+const DOMINIO_INSTITUCIONAL = "@aloe.ulima.edu.pe";
+const LONGITUD_MINIMA_CONTRASENA = 8;
 
 /**
  * Pantalla de registro de StudyMatch (HU2).
@@ -72,6 +75,20 @@ export default function Registro() {
 			!contrasena.trim()
 		) {
 			setError("Por favor completa todos los campos antes de continuar.");
+			return;
+		}
+
+		if (!correoInstitucional.trim().toLowerCase().endsWith(DOMINIO_INSTITUCIONAL)) {
+			setError(
+				`Usa tu correo institucional con dominio ${DOMINIO_INSTITUCIONAL}.`,
+			);
+			return;
+		}
+
+		if (contrasena.trim().length < LONGITUD_MINIMA_CONTRASENA) {
+			setError(
+				`La contraseña debe tener al menos ${LONGITUD_MINIMA_CONTRASENA} caracteres.`,
+			);
 			return;
 		}
 
@@ -210,7 +227,7 @@ export default function Registro() {
 										type="email"
 										value={formData.correoInstitucional}
 										onChange={handleChange}
-										placeholder="nombre.apellido@universidad.edu"
+										placeholder="nombre.apellido@aloe.ulima.edu.pe"
 									/>
 								</div>
 							</div>

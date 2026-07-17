@@ -1,1 +1,3 @@
-net\studymatch\api\controller\UsuarioController.class
+net/studymatch/api/service/SessionService$SessionRecord.class
+net/studymatch/api/service/SessionService.class
+net/studymatch/api/controller/AuthController.class

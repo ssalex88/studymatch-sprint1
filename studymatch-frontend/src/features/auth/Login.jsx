@@ -1,10 +1,19 @@
 // src/features/auth/Login.jsx
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../../core/services/authService";
 import { cacheCurrentUserForUi } from "../../core/services/currentUserCache";
 import "./Login.css";
+
+const RUTA_POR_ROL = {
+	Administrador: "/admin",
+	Estudiante: "/perfil",
+};
+
+function obtenerRutaPorRol(rol) {
+	return RUTA_POR_ROL[rol] || "/perfil";
+}
 
 /**
  * Pantalla de inicio de sesión de StudyMatch (HU1).
@@ -40,7 +49,7 @@ export default function Login() {
 		try {
 			const respuesta = await loginUser(formData);
 			cacheCurrentUserForUi(respuesta);
-			navigate("/perfil");
+			navigate(obtenerRutaPorRol(respuesta.rol));
 		} catch (err) {
 			setError(err.message || "Credenciales de acceso incorrectas.");
 		} finally {
@@ -95,7 +104,7 @@ export default function Login() {
 										type="email"
 										value={formData.correoInstitucional}
 										onChange={handleChange}
-										placeholder="nombre.apellido@universidad.edu"
+										placeholder="nombre.apellido@aloe.ulima.edu.pe"
 									/>
 								</div>
 							</div>
